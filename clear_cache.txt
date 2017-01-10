@@ -1,0 +1,7 @@
+
+/root/.mozilla/firefox/o6eogpb0.default/sessionstore-backups/recovery.bak
+/root/.mozilla/firefox/o6eogpb0.default/sessionstore-backups/previous.js
+
+/root/.mozilla/firefox/o6eogpb0.default/storage/temporary/*
+
+~/.mozilla/firefox/*.default/cookies.sqlite

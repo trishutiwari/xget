@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-import subprocess
+import subprocess, sys
+
 try:
 	try:
 		subprocess.run("python -c 'import dnslib'",shell=True,check=True)       
@@ -29,14 +30,26 @@ try:
 	subprocess.run("chmod +x *py",shell=True)
 
 	print("[*] Starting processes...",end="")
+	
+	try:
 
-	dns = subprocess.Popen("./dns_server.py")
+		dns = subprocess.Popen("./dns_server.py")
 
-	https = subprocess.Popen("./https.py")
+		proxy = subprocess.Popen("./proxy_server.py")
 
-	http = subprocess.Popen("./http.py")
+		dns_exit , proxy_exit = dns.returncode, proxy.returncode #NEED TO FIX
 
-	print("Successful")
+		if dns_exit != None or proxy_exit != None:
+			raise RuntimeError
+
+		print("Successful")
+
+	except Exception:
+		
+		print("Failed")
+		
+		sys.exit(1)
+		
 
 	while 1:
 		pass
@@ -44,7 +57,6 @@ try:
 except KeyboardInterrupt:
 	subprocess.run("cp ./resolv.conf.backup " + nameserverfile,shell=True)
 	dns.kill()
-	https.kill()
-	http.kill()
+	proxy.kill()
 
 

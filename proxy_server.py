@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import sys, socket, threading, traceback
-from dependencies import *
+from network_thread import *
 
 #------BETWEEN PROXY AND CLIENT--------#
 
@@ -13,8 +13,8 @@ port = 80
 #bind port on all interfaces
 try:
 	proxysock.bind(('',port))
-except OSError:
-	print "[*] port" + str(port) + "is being used by another process. Make sure to free the port before starting server."
+except Exception:
+	print "[*] port " + str(port) + " is being used by another process. Make sure to free the port before starting server."
 	sys.exit(1)
 
 #queues up a maximum of 20 client connections
@@ -28,15 +28,9 @@ counter = 0
 main_thread = threading.currentThread()
 while 1:
 	try:
-		#print "waiting for connection from browser"
 		(clientsock, addr) = proxysock.accept()
 		#handle each connection on a seperate thread
-		#request = clientsock.recv(2048)
-		#if request == None:
-		#	clientsock.shutdown(socket.SHUT_RDWR)
-		#	clientsock.close()
-		#	continue
-		threadclient = thread(clientsock,port)
+		threadclient = network_thread(clientsock,port)
 		threadclient.daemon = True
 		threadclient.start()
 		#print "new thread started " + str(counter)
