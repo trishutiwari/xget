@@ -5,8 +5,6 @@ Useful for programming exams with internet access in colleges/schools as it help
 
 REQUIREMENTS:
 
-	1) A valid SSL certificate that should be named "cert.pem" with a key called "key.pem". The default certificate is self-signed, which will not be enough to monitor SSL traffic.
-
 	2) The program is currently platform dependent, and will only run on linux distributions. This will be changed in the future.
 
 FUNCTIONING:
