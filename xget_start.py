@@ -1,19 +1,28 @@
 #!/usr/bin/env python3
 
 import subprocess
+try:
+	nameserverfile = "/etc/resolv.conf"
 
-nameserverfile = "/var/run/NetworkManager"
+	subprocess.Popen("cp "+ nameserverfile +" ./resolv.conf.backup",shell=True)
 
-subprocess.Popen("cp "+ nameserverfile +" ./resolv.conf.backup",shell=True)
+	resolv = open (nameserverfile,'w')
 
-resolv = open (nameserverfile,'w')
+	resolv.write("nameserver 127.0.0.1")
 
-resolv.write("nameserver 127.0.0.1")
+	dns = subprocess.Popen("dns_server.py")
 
-subprocess.Popen("dnsserver.py")
+	https = subprocess.Popen("https.py")
 
-subprocess.Popen("https.py")
+	http = subprocess.Popen("http.py")
 
-subprocess.Popen("http.py")
+	while 1:
+		pass
+
+except KeyboardInterrupt:
+	subprocess.Popen("cp ./resolv.conf.backup " + nameserverfile,shell=True)
+	dns.kill()
+	https.kill()
+	http.kill()
 
 

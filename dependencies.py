@@ -5,6 +5,15 @@ from dnslib import DNSRecord,DNSQuestion,DNSHeader,QTYPE
 
 logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s',)
 
+def filter_request(url):
+	if "POST" in url: #No POST requests allowed
+		return "HTTP/1.1 403 Forbidden Protocol\r\n\r\n".encode('utf-8')
+	if "png" in url or "jpeg" in url or "jpg" in url or "gif" in url: 
+		#not loading as many images as possible for faster performance
+		return "HTTP/1.1 404 Image Not Found\r\n\r\n".encode('utf-8')
+	return None
+	
+
 def get_header(data):
         offset = data.find("\r\n\r\n") + len("\r\n\r\n")
         header,content = data[:offset],data[offset:]
@@ -113,19 +122,16 @@ class thread(threading.Thread):
 			while not self.terminate:
 				#recieve the web request from the client
 				self.request = self.clientsock.recv(2048)
-				#print self.request[:
 				self.hostname = get_hostname(self.request)
 				if not self.connected:
 					self.serversock = connect(self.hostname,self.port)
 					self.connected = True
 				url = self.request[:self.request.find("\r\n")].decode('utf-8')
 				logging.debug("Sending request to server: " + url)
-				if "POST" in url: #No POST requests allowed
-					self.clientsock.sendall("HTTP/1.1 403 Forbidden Protocol\r\n\r\n".encode('utf-8'))
-					continue
-				if "png" in url or "jpeg" in url or "jpg" in url or "gif" in url: 
-					#not loading as many images as possible for faster performance
-					send(self.clientsock,"HTTP/1.1 404 Image Not Found\r\n\r\n".encode('utf-8'),self)
+				#-------------------------FILTERING DATA HERE---------------------#
+				response = filter_request(url)
+				if response != None:
+					self.clientsock.sendall(self.response)
 					continue
 				#send the webserver the client's request
 				send(self.serversock,self.request,self)
@@ -146,19 +152,13 @@ class thread(threading.Thread):
 				
 		except socket.timeout:
 			try:
-				#self.clientsock.shutdown(socket.SHUT_RDWR)
 				self.clientsock.close()
-				#self.serversock.shutdown(socket.SHUT_RDWR)
 				self.serversock.close()
 			except AttributeError as ae:
 				logging.debug( ae )
 				logging.debug( "Trying to close a closed socket" )
 			logging.debug( "Successfully terminated thread")
 		except Exception as e:
-			#self.clientsock.shutdown(socket.SHUT_RDWR)
-			#self.clientsock.close()
-			#self.serversock.shutdown(socket.SHUT_RDWR)
-			#self.serversock.close()
 			exc_type, exc_value, exc_traceback = sys.exc_info()
 	    		traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)
 			logging.debug( e )
