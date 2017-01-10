@@ -5,24 +5,25 @@ from dnslib import DNSRecord,DNSQuestion,DNSHeader,QTYPE
 
 logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s',)
 
-def getheader(data):
+def get_header(data):
         offset = data.find("\r\n\r\n") + len("\r\n\r\n")
         header,content = data[:offset],data[offset:]
         return header,content
 
-def getcontentlength(resp):
+def get_content_length(resp):
 	start = resp.find("Content-Length: ") + len("Content-Length: ")
 	end = resp.find('\r\n',start,)
 	length = resp[start:end].strip()
 	try:
 		return int(length)
 	except Exception as e:
+		return None
 		logging.debug(resp)
 		logging.debug( e )
 		exc_type, exc_value, exc_traceback = sys.exc_info()
     		traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)
 
-def gethostname(data):
+def get_hostname(data):
 	data = data.decode('utf-8')
 	if "POST" in data[:5]:
 		hostname = None
@@ -76,6 +77,16 @@ def recieve(stream,length,threadinst):
 		logging.debug( e )
 		threadinst.terminate = True
 
+def recieve_sans_length(stream,threadinst):
+	stream.settimeout(1)
+	data = b''
+	try:
+		while True:
+			data+=stream.recv(2048)
+	except socket.timeout:
+		return data
+	
+
 def send(stream,data,threadinst):
 	try:	
 		stream.sendall(data)
@@ -90,12 +101,12 @@ def send(stream,data,threadinst):
 		return 1	
 
 class thread(threading.Thread):
-	def __init__(self, clientsock,request,port):
+	def __init__(self, clientsock,port):
 		threading.Thread.__init__(self)
 		self.clientsock = clientsock
 		self.serversock = None
 		self.connected = False
-		self.request = request
+		self.request = None
 		self.hostname = None
 		self.terminate = False
 		self.port = port
@@ -107,35 +118,37 @@ class thread(threading.Thread):
 			self.clientsock.settimeout(4)
 			while not self.terminate:
 				#recieve the web request from the client
-				self.hostname = gethostname(self.request)
+				self.request = self.clientsock.recv(2048)
+				#print self.request[:
+				self.hostname = get_hostname(self.request)
 				if self.hostname == None:
 					clientsock.sendall("HTTP/1.1 403 Forbidden Protocol\r\n\r\n".encode('utf-8'))
 				if not self.connected:
 					self.serversock = connect(self.hostname,self.port)
 					self.connected = True
+				url = self.request[:self.request.find("\r\n")].decode('utf-8')
+				logging.debug("Sending request to server: " + url)
+				if "png" in url or "jpeg" in url or "jpg" in url or "gif" in url: 
+					#not loading as many images as possible for faster performance
+					send(self.clientsock,"HTTP/1.1 404 Image Not Found\r\n\r\n".encode('utf-8'),self)
 					continue
-				else:
-					url = self.request[:self.request.find("\r\n")].decode('utf-8')
-					logging.debug("Sending request to server: " + url)
-					if "png" in url or "jpeg" in url or "jpg" in url or "gif" in url: 
-						#not loading as many images as possible for faster performance
-						send(self.clientsock,"HTTP/1.1 404 Image Not Found\r\n\r\n".encode('utf-8'),self)
-						self.request = self.clientsock.recv(2048)
-						continue
-					#send the webserver the client's request
-					send(self.serversock,self.request,self)
-					logging.debug( "Request successfully sent to server " + self.hostname)
-					#recieve the data from the webserver
-					self.header = self.serversock.recv(4096)
-					self.header, self.response = getheader(self.header)
-					send(self.clientsock,self.header,self)
-					self.contentlength = getcontentlength(self.header) - sys.getsizeof(self.response)
+				#send the webserver the client's request
+				send(self.serversock,self.request,self)
+				logging.debug( "Request successfully sent to server " + self.hostname)
+				#recieve the data from the webserver
+				self.header = self.serversock.recv(4096)
+				self.header, self.response = get_header(self.header)
+				send(self.clientsock,self.header,self)
+				self.contentlength = get_content_length(self.header) - sys.getsizeof(self.response)
+				if self.contentlength == None:
 					self.response+=recieve(self.serversock,self.contentlength,self)
-					logging.debug( "Recieved response from server " + self.hostname )
-					#shuttle all this data back to the client
-					send(self.clientsock,self.response,self)
-					logging.debug( "Succesfully sent response to client" )
-				self.request = self.clientsock.recv(2048)
+				else:
+					self.response+=recieve_sans_length(self.serversock,self) #some webservers don't include content length :(
+				logging.debug( "Recieved response from server " + self.hostname )
+				#shuttle all this data back to the client
+				send(self.clientsock,self.response,self)
+				logging.debug( "Succesfully sent response to client" )
+				
 		except socket.timeout:
 			try:
 				#self.clientsock.shutdown(socket.SHUT_RDWR)

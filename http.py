@@ -31,12 +31,12 @@ while 1:
 		#print "waiting for connection from browser"
 		(clientsock, addr) = proxysock.accept()
 		#handle each connection on a seperate thread
-		request = clientsock.recv(2048)
-		if request == None:
-			clientsock.shutdown(socket.SHUT_RDWR)
-			clientsock.close()
-			continue
-		threadclient = thread(clientsock,request,80)
+		#request = clientsock.recv(2048)
+		#if request == None:
+		#	clientsock.shutdown(socket.SHUT_RDWR)
+		#	clientsock.close()
+		#	continue
+		threadclient = thread(clientsock,port)
 		threadclient.daemon = True
 		threadclient.start()
 		#print "new thread started " + str(counter)

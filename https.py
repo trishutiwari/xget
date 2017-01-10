@@ -36,12 +36,7 @@ while 1:
 		(clientsock, addr) = proxysock.accept()
 		context.wrap_socket(clientsock,server_side=True)
 		#handle each connection on a seperate thread
-		request = clientsock.recv(2048)
-		if request == None:
-			clientsock.shutdown(socket.SHUT_RDWR)
-			clientsock.close()
-			continue
-		threadclient = thread(clientsock,request,hostname,443)
+		threadclient = thread(clientsock,port)
 		threadclient.daemon = True
 		threadclient.start()
 		print "new thread started"
