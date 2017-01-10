@@ -18,13 +18,13 @@ port = 443
 try:
 	proxysock.bind(('',port))
 except OSError:
-	print("[*]Cannot start https.py: port",str(port),"is being used by another process. Make sure to free the port before starting the server.")
+	print "[*]Cannot start https.py: port " + str(port) + " is being used by another process. Make sure to free the port before starting the server."
 	sys.exit(1)
 
 #queues up a maximum of 20 client connections
 proxysock.listen(20)
 
-print ("[*] Server started, listening on port",str(port))
+print "[*] Server started, listening on port" + str(port)
 
 #------MAIN LOOP--------#
 
@@ -39,11 +39,8 @@ while 1:
 		threadclient = thread(clientsock,port)
 		threadclient.daemon = True
 		threadclient.start()
-		print "new thread started"
-except KeyboardInterrupt:
-		exc_type, exc_value, exc_traceback = sys.exc_info()
-    		traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)
-		print "\n[*] User requested http.py to be aborted..."
+	except KeyboardInterrupt:
+		print "\n\n[*] User requested https.py to be aborted..."
 		print "[*] Closing port " + str(port) + "..."
 		proxysock.shutdown(socket.SHUT_RDWR)
 		proxysock.close()

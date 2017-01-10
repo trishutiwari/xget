@@ -41,9 +41,7 @@ while 1:
 		threadclient.start()
 		#print "new thread started " + str(counter)
 	except KeyboardInterrupt:
-		exc_type, exc_value, exc_traceback = sys.exc_info()
-    		traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)
-		print "\n[*] User requested http.py to be aborted..."
+		print "\n\n[*] User requested http.py to be aborted..."
 		print "[*] Closing port " + str(port) + "..."
 		proxysock.shutdown(socket.SHUT_RDWR)
 		proxysock.close()
