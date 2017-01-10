@@ -20,6 +20,7 @@ FUNCTIONING:
 	5) Stop: Stopping the program would restore /etc/resolv.conf and kill the above program.
 
 TO USE:
+
 	1) Just run xget_start.py (with root privledges)
 
 
