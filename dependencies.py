@@ -25,27 +25,21 @@ def get_content_length(resp):
 
 def get_hostname(data):
 	data = data.decode('utf-8')
-	if "POST" in data[:5]:
-		hostname = None
-	elif "GET" in data[:5]: #only allow get request to get through
-		hostname_start = data.find("Host: ")+6
-		hostname_end = data.find('\n',hostname_start,)
-		hostname = str(data[hostname_start:hostname_end-1])
-		dnssock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		#doing a dns query for hostname manually since we have overridden the /etc/resolv.conf file with our own dummy nameserver
-		query = DNSRecord(DNSHeader(rd=1),q=DNSQuestion(hostname))
-		#logging.debug( query
-		dnssock.sendto(query.pack(),("8.8.8.8",53)) # any nameserver ip
-		response,addr = dnssock.recvfrom(8192)
-		dnssock.close()
-		response = DNSRecord.parse(response)
-		for resource_record in response.rr:
-			if resource_record.rtype == QTYPE.A:
-				hostname = str(resource_record.rdata)
-				break
-	else:
-		hostname = None
-		logging.debug( "Hostname is None; user sent prohibited request")
+	hostname_start = data.find("Host: ")+6
+	hostname_end = data.find('\n',hostname_start,)
+	hostname = str(data[hostname_start:hostname_end-1])
+	dnssock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	#doing a dns query for hostname manually since we have overridden the /etc/resolv.conf file with our own dummy nameserver
+	query = DNSRecord(DNSHeader(rd=1),q=DNSQuestion(hostname))
+	#logging.debug( query
+	dnssock.sendto(query.pack(),("8.8.8.8",53)) # any nameserver ip
+	response,addr = dnssock.recvfrom(8192)
+	dnssock.close()
+	response = DNSRecord.parse(response)
+	for resource_record in response.rr:
+		if resource_record.rtype == QTYPE.A:
+			hostname = str(resource_record.rdata)
+			break
 	return hostname
 
 def connect(hostname,port):
@@ -121,13 +115,14 @@ class thread(threading.Thread):
 				self.request = self.clientsock.recv(2048)
 				#print self.request[:
 				self.hostname = get_hostname(self.request)
-				if self.hostname == None:
-					self.clientsock.sendall("HTTP/1.1 403 Forbidden Protocol\r\n\r\n".encode('utf-8'))
 				if not self.connected:
 					self.serversock = connect(self.hostname,self.port)
 					self.connected = True
 				url = self.request[:self.request.find("\r\n")].decode('utf-8')
 				logging.debug("Sending request to server: " + url)
+				if "POST" in url: #No POST requests allowed
+					self.clientsock.sendall("HTTP/1.1 403 Forbidden Protocol\r\n\r\n".encode('utf-8'))
+					continue
 				if "png" in url or "jpeg" in url or "jpg" in url or "gif" in url: 
 					#not loading as many images as possible for faster performance
 					send(self.clientsock,"HTTP/1.1 404 Image Not Found\r\n\r\n".encode('utf-8'),self)
