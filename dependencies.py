@@ -122,7 +122,7 @@ class thread(threading.Thread):
 				#print self.request[:
 				self.hostname = get_hostname(self.request)
 				if self.hostname == None:
-					clientsock.sendall("HTTP/1.1 403 Forbidden Protocol\r\n\r\n".encode('utf-8'))
+					self.clientsock.sendall("HTTP/1.1 403 Forbidden Protocol\r\n\r\n".encode('utf-8'))
 				if not self.connected:
 					self.serversock = connect(self.hostname,self.port)
 					self.connected = True
@@ -139,10 +139,10 @@ class thread(threading.Thread):
 				self.header = self.serversock.recv(4096)
 				self.header, self.response = get_header(self.header)
 				send(self.clientsock,self.header,self)
-				self.contentlength = get_content_length(self.header) - sys.getsizeof(self.response)
-				if self.contentlength == None:
+				try:
+					self.contentlength = get_content_length(self.header) - sys.getsizeof(self.response)
 					self.response+=recieve(self.serversock,self.contentlength,self)
-				else:
+				except TypeError:
 					self.response+=recieve_sans_length(self.serversock,self) #some webservers don't include content length :(
 				logging.debug( "Recieved response from server " + self.hostname )
 				#shuttle all this data back to the client
