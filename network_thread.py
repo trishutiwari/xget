@@ -107,7 +107,6 @@ class network_thread(threading.Thread):
 				self.request = self.clientsock.recv(2048)
 				if self.is_ssl:
 					self.request = self.request.replace(self.hostname_prev,self.hostname)
-				logging.debug(self.request)
 				self.domain , self.hostname = get_hostname(self.request)
 				if not self.connected:
 					self.connect()

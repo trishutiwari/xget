@@ -62,9 +62,8 @@ except KeyboardInterrupt:
 	subprocess.run("cp ./resolv.conf.backup " + nameserverfile,shell=True)
 	try:
 		dns.kill()
-		time.sleep(1)
 		proxy.kill()
-	except Exception:
-		pass
+	except Exception as e:
+		print (e)
 
 
