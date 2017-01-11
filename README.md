@@ -18,13 +18,20 @@ FUNCTIONING:
 		It looks at the incoming traffic at port 80, and if it passes all filters, then sends the request to the actual server. Otherwise, a HTTP 403 (Forbidden) response is sent back to the client.
 
 		SSL traffic: 
-		Encrypted traffic is monitored via the same principles, but additional steps have to be taken. When the user enters a domain like "facebook.com" in the browser's address bar, the browser looks into its cache to check if the connection is to be made over http or https. However, since we cleared the cache during the program's startup, the browser doesn't know which of the schemes is the correct one. And so, the browser first attempts a connection over http. The proxy lets this request pass to the end server, which then sends a re-direct response to the https version of the website. The proxy, however, does not let this redirect response reach the client's browser (and so the browser never comes to know that the network traffic was supposed to be encrypted). Instead, as soon as the proxy recieves the redirect location, it itself opens an SSL encrypted connection with the end server and send the same GET request that the client had originally sent over HTTP. The proxy then recieves the response and decrypts it (this is possible because the SSL connection is between the proxy and the end server)
+		Encrypted traffic is monitored via the same principles, but additional steps have to be taken. When the user enters a domain like "facebook.com" in the browser's address bar, the browser looks into its cache to check if the connection is to be made over HTTP or HTTPS. However, since we cleared the cache during the program's startup, the browser doesn't know which of the schemes is the correct one. And so, the browser first attempts a connection over HTTP. The proxy lets this request pass to the end server, which then sends a re-direct response to the https version of the website. The proxy, however, does not let this redirect response reach the client's browser (and so the browser never comes to know that the network traffic was supposed to be encrypted). Instead, as soon as the proxy recieves the redirect location, it itself opens an SSL encrypted connection with the end server and send the same GET request that the client had originally sent over HTTP. The proxy then recieves the response and decrypts it (this is possible because the SSL connection is between the proxy and the end server). It then sends this decrypted response to the client. Then, any subsequent (allowed) requests from the client are forwared to the end server after the proxy replaces the HOST header in the request with the correct HTTPS HOST domain name.
 
-	5) Stop: Stopping the program would restore /etc/resolv.conf and kill the above program.
+	5) Stop: Stopping the program would restore /etc/resolv.conf and kill the above programs.
 
 TO USE:
 
 	1) Just run xget_start.py (with root privledges)
+
+TO DO:
+	
+	1) Perform code cleanup
+	2) Make the program platform independent
+	3) Implement the linux version of the program as a service
+	4) Implement proper log files
 
 
 
