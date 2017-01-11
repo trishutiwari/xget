@@ -36,10 +36,16 @@ try:
 		dns = subprocess.Popen("./dns_server.py")
 
 		proxy = subprocess.Popen("./proxy_server.py")
+		
+		dns_exit = dns.poll()
+	
+		proxy_exit = proxy.poll()
+	
+		 #NEED TO FIX
 
-		dns_exit , proxy_exit = dns.returncode, proxy.returncode #NEED TO FIX
+		print (dns_exit, proxy_exit)
 
-		if dns_exit != None or proxy_exit != None:
+		if dns_exit or proxy_exit:
 			raise RuntimeError
 
 		print("Successful")

@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
 from network_functions import *
+import traceback,sys
 
 class network_thread(threading.Thread):
 	def __init__(self, clientsock,port):
 		threading.Thread.__init__(self)
 		self.clientsock = clientsock
+		self.is_ssl = False
 		self.hostnam_prev = None
 		self.serversock = None
 		self.connected = False
@@ -17,15 +19,18 @@ class network_thread(threading.Thread):
 		self.response = None
 		self.header = None
 		self.url = None
+		self.domain = None
 
 	def connect(self):
 		self.serversock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		if self.port == 443:
-			context = ssl.create_default_context()
-			self.serversock = context.wrap_socket(self.serversock, server_hostname=self.hostname)
-			logging.debug( "SSL connection established with " + self.hostname)
+			context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+			context.verify_mode = ssl.CERT_REQUIRED
+			context.load_verify_locations("/etc/ssl/certs/ca-certificates.crt")
+			self.serversock = context.wrap_socket(self.serversock)
+			logging.debug( "SSL connection established with " + self.domain)
 		self.serversock.connect((self.hostname,self.port))
-		logging.debug( "regular HTTP connection established with " + self.hostname)
+		logging.debug( "regular HTTP connection established with " + self.domain)
 		self.connected = True
 		
 
@@ -42,13 +47,13 @@ class network_thread(threading.Thread):
 			    bytesrecvd = bytesrecvd + sys.getsizeof(chunk)
 			return ''.join(chunks)
 		except Exception as e:
-			exc_type, exc_value, exc_traceback = sys.exc_info()
-	    		traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)
 			logging.debug( e )
 			self.terminate = True
+			exc_type, exc_value, exc_traceback = sys.exc_info()
+	    	traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)
 
 	def recieve_sans_length(self,stream):
-		stream.settimeout(1)
+		stream.settimeout(2)
 		data = b''
 		try:
 			while True:
@@ -58,6 +63,8 @@ class network_thread(threading.Thread):
 				return data
 			except UnboundLocalError:
 				self.terminate = True
+		except ssl.SSLError:
+				return data
 		
 	
 
@@ -66,28 +73,30 @@ class network_thread(threading.Thread):
 			stream.sendall(data)
 			return 0
 		except Exception as e:
-			exc_type, exc_value, exc_traceback = sys.exc_info()
-	    		traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)
 			logging.debug( e )
 			logging.debug( "Could not send data, perhaps due to connection reset by peer" )
 			#if there is nothing to send, the connection has been reset by peer.
 			self.terminate = True
-			return 1	
+			exc_type, exc_value, exc_traceback = sys.exc_info()
+	    	traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)
+			#return 1	
 
 
 	def ssl_handling(self):
 		self.hostname_prev = self.hostname
-		self.hostname, self.url, req = get_hostname_url_ssl(self.header)
+		self.domain, self.hostname, self.url, req = get_hostname_url_ssl(self.header)
+		logging.debug(self.domain + " " + self.hostname + " " + self.url + " " + req)
 		self.serversock.shutdown(socket.SHUT_RDWR) #shutdown the old http socket with server
 		self.serversock.close()
+		logging.debug("Closed connection with old host")
 		self.connected = False
-		if not self.connected:
-			self.port = 443
-			self.serversock = self.connect()
-			self.connected = True
+		self.is_ssl = True
 		self.request = self.request.replace(self.hostname_prev,self.hostname)
 		self.request = self.request.replace(self.request[:self.request.find('\r\n')],req)
-		send(self.serversock,self.request,self)
+		if not self.connected:
+			self.port = 443
+			self.connect()
+		self.send(self.serversock,self.request)
 		self.header = self.serversock.recv(4096)
 		self.header, self.response = get_header(self.header)
 
@@ -97,8 +106,10 @@ class network_thread(threading.Thread):
 			while not self.terminate:
 				#recieve the web request from the client
 				self.request = self.clientsock.recv(2048)
+				if self.is_ssl:
+					self.request = self.request.replace(self.hostname_prev,self.hostname)
 				logging.debug(self.request)
-				self.hostname = get_hostname(self.request)
+				self.domain , self.hostname = get_hostname(self.request)
 				if not self.connected:
 					self.connect()
 				url = self.request[:self.request.find("\r\n")].decode('utf-8')
@@ -110,14 +121,14 @@ class network_thread(threading.Thread):
 					continue
 				#send the webserver the client's request
 				self.send(self.serversock,self.request)
-				logging.debug( "Request successfully sent to server " + self.hostname)
+				logging.debug( "Request successfully sent to server " + self.domain)
 				#recieve the data from the webserver
 				self.header = self.serversock.recv(4096)
 				self.header, self.response = get_header(self.header)
 				response_code = self.header[:self.header.find("\r\n")].split(" ")[1]
-				logging.debug(response_code)
+				logging.debug("Response code: " + response_code)
 				if int(response_code) in [300,301,302,303,304,305,306,307,308]:
-					if "https" in self.header: #overhead with ssl connections as we need to perform an ssl strip
+					if "https" in self.header: #overhead with ssl connections as we need to perform ssl stripping
 						self.ssl_handling()
 				self.send(self.clientsock,self.header)
 				try:
@@ -125,7 +136,7 @@ class network_thread(threading.Thread):
 					self.response+=self.recieve(self.serversock)
 				except TypeError:
 					self.response+=self.recieve_sans_length(self.serversock) #some webservers don't include content length :(
-				logging.debug( "Recieved response from server " + self.hostname )
+				logging.debug( "Recieved response from server " + self.domain )
 				#shuttle all this data back to the client
 				self.send(self.clientsock,self.response)
 				logging.debug( "Succesfully sent response to client" )
@@ -139,6 +150,6 @@ class network_thread(threading.Thread):
 				logging.debug( "Trying to close a closed socket" )
 			logging.debug( "Successfully terminated thread")
 		except Exception as e:
-			exc_type, exc_value, exc_traceback = sys.exc_info()
-	    		traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)
 			logging.debug( e )
+			#exc_type, exc_value, exc_traceback = sys.exc_info()
+	    	#traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)

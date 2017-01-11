@@ -51,7 +51,7 @@ def get_hostname(data):
 	hostname_start = data.find("Host: ")+6
 	hostname_end = data.find('\r\n',hostname_start,)
 	hostname = str(data[hostname_start:hostname_end])
-	return dns_query(hostname)
+	return hostname, dns_query(hostname)
 
 def get_hostname_url_ssl(data):
 	url_start = data.find("Location: ") + len("Location: ")
@@ -60,7 +60,7 @@ def get_hostname_url_ssl(data):
 	hostname_start = url.find("://") + 3
 	hostname_end = url.find('/',hostname_start,)
 	hostname = url[hostname_start:hostname_end]
-	req = ("GET " + url[hostname_end:]).encode('utf-8')
-	return dns_query(hostname), url, req
+	req = ("GET " + url[hostname_end:] + " HTTP/1.1").encode('utf-8')
+	return hostname, dns_query(hostname), url, req
 	
 
