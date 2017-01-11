@@ -30,7 +30,6 @@ class network_thread(threading.Thread):
 			self.serversock = context.wrap_socket(self.serversock)
 			logging.debug( "SSL connection established with " + self.domain)
 		self.serversock.connect((self.hostname,self.port))
-		logging.debug( "regular HTTP connection established with " + self.domain)
 		self.connected = True
 		
 
@@ -112,6 +111,7 @@ class network_thread(threading.Thread):
 				self.domain , self.hostname = get_hostname(self.request)
 				if not self.connected:
 					self.connect()
+					logging.debug("Successfully connected with server: " + self.domain)
 				url = self.request[:self.request.find("\r\n")].decode('utf-8')
 				logging.debug("Sending request to server: " + url)
 				#-------------------------FILTERING DATA HERE---------------------#
@@ -127,6 +127,7 @@ class network_thread(threading.Thread):
 				self.header, self.response = get_header(self.header)
 				response_code = self.header[:self.header.find("\r\n")].split(" ")[1]
 				logging.debug("Response code: " + response_code)
+				#checking for redirect response codes
 				if int(response_code) in [300,301,302,303,304,305,306,307,308]:
 					if "https" in self.header: #overhead with ssl connections as we need to perform ssl stripping
 						self.ssl_handling()

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import subprocess, sys
+import subprocess, sys, time
 
 try:
 	try:
@@ -11,6 +11,12 @@ try:
 		subprocess.run("sh lib_install.sh",shell=True)
 		print("Successful")
 	
+	print("[*] Clearing firefox cache...",end="")
+
+	subprocess.run("sh clear_cache.sh",shell=True)
+
+	print("Successful")
+
 	nameserverfile = "/etc/resolv.conf"
 
 	print("[*] Creating backup of /etc/resolv.conf...",end="")
@@ -37,32 +43,28 @@ try:
 
 		proxy = subprocess.Popen("./proxy_server.py")
 		
-		dns_exit = dns.poll()
+		dns.wait(timeout = 1)
 	
-		proxy_exit = proxy.poll()
+		proxy.wait(timeout = 1)
+		
+		print("Failed")
 	
-		 #NEED TO FIX
-
-		print (dns_exit, proxy_exit)
-
-		if dns_exit or proxy_exit:
-			raise RuntimeError
-
-		print("Successful")
+		raise KeyboardInterrupt
 
 	except Exception:
 		
-		print("Failed")
-		
-		sys.exit(1)
-		
+		print("Successful")
 
 	while 1:
 		pass
 
 except KeyboardInterrupt:
 	subprocess.run("cp ./resolv.conf.backup " + nameserverfile,shell=True)
-	dns.kill()
-	proxy.kill()
+	try:
+		dns.kill()
+		time.sleep(1)
+		proxy.kill()
+	except Exception:
+		pass
 
 
