@@ -1,0 +1,19 @@
+SSLsniff							System Manager's Manual							      SSLsniff
+
+NAME
+	sslsniff - intercepts http/https traffic to grab sensitive information
+
+SYNOPSIS
+	sslsniff [ -d dnsserver list] [-p proxyserver list]
+
+DESCRIPTION
+	SSLsniff uses DNS spoofing and cache poisoning, along with HTTP response interception to MITM SSL connections. No certificates required!
+	Also works with regular HTTP streams. The program outputs any sensitive information grabbed (such as form data, cookies, etc)
+
+OPTIONS
+	-d	a comma seperated list of IPs of dnsservers (i.e., machines where the dnsserver.py script supplied with this program is running)
+
+	-p	a comma seperated list of IPs of proxyservers (i.e., machines where the proxyserver.py script supplied with this program is running)
+
+AUTHOR
+	Trishita Tiwari <trishutiwari@gmail.com>

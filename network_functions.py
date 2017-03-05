@@ -1,18 +1,32 @@
 #!/usr/bin/env python
 
-import threading,socket,logging,traceback,sys,ssl
+import threading,socket,logging,traceback,sys,ssl,StringIO,gzip,zlib
 from dnslib import DNSRecord,DNSQuestion,DNSHeader,QTYPE
+import zlib
+
 
 logging.basicConfig(level=logging.DEBUG,format='[%(levelname)s] (%(threadName)-10s) %(message)s',)
 
-def filter_request(url):
-	if "POST" in url: #No POST requests allowed
-		return "HTTP/1.1 403 Forbidden Protocol\r\n\r\n".encode('utf-8')
-	if "png" in url or "jpeg" in url or "jpg" in url or "gif" in url: 
-		#not loading as many images as possible for faster performance
-		return "HTTP/1.1 404 Image Not Found\r\n\r\n".encode('utf-8')
-	return None
-	
+def replace_content_encoding(request):
+	encoding_start = request.find("Accept-Encoding: ") + len("Accept-Encoding: ")
+	encoding_end = request.find("\r\n",encoding_start,)
+	content_encoding = request[encoding_start:encoding_end]
+	request = request.replace(content_encoding,'gzip')
+	logging.debug( "Encoding: " + content_encoding )
+	return request
+
+def filter_response(response):
+	try:
+		if 'html' in response:
+			response = response.replace("https","http")
+		else:
+			#return response ################################FIX!!!!!! #######################################################
+			response = zlib.decompress(response, 32 + zlib.MAX_WBITS)
+			response = response.replace("https","http")
+		return response
+	except Exception as e:
+		logging.debug( e )
+		return "Couldn't unzip :((" 
 
 def get_header(data):
         offset = data.find("\r\n\r\n") + len("\r\n\r\n")
@@ -36,7 +50,7 @@ def dns_query(hostname):
 	dnssock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	#doing a dns query for hostname manually since we have overridden the /etc/resolv.conf file with our own dummy nameserver
 	query = DNSRecord(DNSHeader(rd=1),q=DNSQuestion(hostname))
-	#logging.debug( query
+	#logging.debug( query )
 	dnssock.sendto(query.pack(),("8.8.8.8",53)) # any nameserver ip
 	response,addr = dnssock.recvfrom(8192)
 	dnssock.close()
@@ -45,6 +59,7 @@ def dns_query(hostname):
 		if resource_record.rtype == QTYPE.A:
 			hostname = str(resource_record.rdata)
 			break
+	logging.debug("IP address: " + hostname)
 	return hostname
 
 def get_hostname(data):
