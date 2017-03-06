@@ -55,19 +55,23 @@ class network_thread(threading.Thread):
 	    	traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)
 
 	def recieve_chunked_encoding(self,stream,length,length_recieved):
+		self.content_length = int(length,16)
 		data = b''
 		chunk=stream.recv(int(length,16)-int(length_recieved)+2)
 		data+=chunk
-		print "the length recieved " + str(int(length,16)-int(length_recieved))
+		print "the initial length recieved " + str(len(chunk))
 		try:
 			while True:
-				chunk=stream.recv(5)
+				chunk=stream.recv(6)
 				print "initial chunk with length: " + chunk
-				self.content_length = chunk[:chunk.find("\r\n")]
-				logging.debug("Length: " + self.content_length)
+				total_length = chunk[:chunk.find("\r\n")]
+				if int(total_length) == 0:
+					return data
+				self.content_length+=int(total_length,16)
+				logging.debug("Length: " + total_length)
 				recvd = chunk[chunk.find("\r\n") + len("\r\n"):]
 				print "length recvd " + str(len(recvd))
-				chunk = recvd + stream.recv(int(self.content_length,16)-len(recvd)+2)
+				chunk = recvd + stream.recv(int(total_length,16)-len(recvd)+2)
 				data+=chunk
 				print "final chunk without length: " + chunk
 		except Exception as e:
@@ -78,11 +82,15 @@ class network_thread(threading.Thread):
 		try:
 			self.content_length = get_content_length(self.header) - sys.getsizeof(self.response)
 			self.response+=self.recieve_content_length(stream)
-		except TypeError: #if server uses chunked encoding instead of content-length
-			self.content_length = self.response[:self.response.find("\r\n")]
+		except Exception: #if server uses chunked encoding instead of content-length
+			first_chunk_length = self.response[:self.response.find("\r\n")]
 			self.response = self.response[self.response.find("\r\n") + len("\r\n"):]
 			length_recieved = len(self.response)
-			self.response+=self.recieve_chunked_encoding(stream,self.content_length,length_recieved)
+			self.response+=self.recieve_chunked_encoding(stream,first_chunk_length,length_recieved)
+			encoding_start = self.header.find("Transfer-Encoding:")
+			encoding_end = self.header.find("\r\n",encoding_start,)
+			transfer_encoding = self.header[encoding_start:encoding_end]
+			self.header = self.header.replace(transfer_encoding,"Content-Length: " + str(self.content_length))
 			logging.debug( "Recieved response from server " + self.domain )
 			print "################################ data length ################### " + str(len(self.response))
 		
@@ -149,17 +157,18 @@ class network_thread(threading.Thread):
 				self.header = self.serversock.recv(2048)
 				self.header, self.response = get_header(self.header)
 				print self.header
-				print "Here is the chunked length: " + self.response[:5]
+				#print "Here is the chunked length: " + self.response[:5]
 				self.response_code = self.header[:self.header.find("\r\n")].split(" ")[1]
 				#logging.debug("Response code: " + self.response_code)
 				#checking for redirect response codes
 				while int(self.response_code) in [300,301,302,303,304,305,306,307,308] and "https" in self.header: #perform ssl stripping
 					self.ssl_handling()
-				self.send(self.clientsock,self.header)
 				#logging.debug(self.header)
 				self.recieve(self.serversock)
 				#logging.debug(self.response[:30])
+				self.send(self.clientsock,self.header)
 				self.response = filter_response(self.response) #reading response data for useful info >)
+				print self.response
 				#shuttle all this data back to the client
 				logging.debug( "Removed all https references from response" )
 				self.send(self.clientsock,self.response)

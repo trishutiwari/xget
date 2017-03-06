@@ -17,16 +17,15 @@ def replace_content_encoding(request):
 
 def filter_response(response):
 	try:
-		if 'html' in response:
-			response = response.replace("https","http")
-		else:
-			#return response ################################FIX!!!!!! #######################################################
-			response = zlib.decompress(response, 32 + zlib.MAX_WBITS)
-			response = response.replace("https","http")
+		response = zlib.decompress(response, 32 + zlib.MAX_WBITS)
+		response = response.replace("https","http")
+		print "SUCCESSFULLY DECOMPRESSED!!! FUCK YEAH! <3 <3  <3 <3  <3 <3  <3 <3  <3 <3  <3 <3  <3 <3  <3 <3  <3 <3 "
 		return response
 	except Exception as e:
-		logging.debug( e )
-		return "Couldn't unzip :((" 
+		logging.debug(e)
+		print "Not compressed! :( (((((((((((((((((((((((((((((((((((((((((((((((" 
+		#response = response.replace("https","http")
+		return response
 
 def get_header(data):
         offset = data.find("\r\n\r\n") + len("\r\n\r\n")
@@ -37,14 +36,7 @@ def get_content_length(resp):
 	start = resp.find("Content-Length: ") + len("Content-Length: ")
 	end = resp.find('\r\n',start,)
 	length = resp[start:end].strip()
-	try:
-		return int(length)
-	except Exception as e:
-		return None
-		logging.debug(resp)
-		logging.debug( e )
-		exc_type, exc_value, exc_traceback = sys.exc_info()
-    		traceback.print_tb(exc_traceback, limit=5, file=sys.stdout)
+	return int(length)
 
 def dns_query(hostname):
 	dnssock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
